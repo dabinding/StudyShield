@@ -43,3 +43,18 @@ test("rejects an invalid video id", async () => {
   const response = await invoke(handler, { body: { videoId: "!", title: "Anything" } });
   assert.equal(response.status, 400);
 });
+
+test("allows a school-approved classroom video without calling the classifier", async () => {
+  const videoId = "HtxOsOuY7hA";
+  const handler = createHandler({
+    approvedVideoIds: new Set([videoId]),
+    resolveMetadata: async () => assert.fail("should not fetch metadata for an approved video"),
+    classifier: async () => assert.fail("should not classify an approved video")
+  });
+
+  const response = await invoke(handler, { body: { videoId } });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.allowed, true);
+  assert.equal(response.body.category, "educational");
+  assert.equal(response.body.metadataSource, "policy_override");
+});

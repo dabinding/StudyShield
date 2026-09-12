@@ -18,6 +18,13 @@ function validVideoId(value) {
   return typeof value === "string" && /^[A-Za-z0-9_-]{6,20}$/.test(value);
 }
 
+function approvedVideoIds(value) {
+  const entries = value instanceof Set || Array.isArray(value)
+    ? value
+    : String(value ?? "").split(",");
+  return new Set([...entries].map(id => String(id).trim()).filter(validVideoId));
+}
+
 function normalizeInput(body) {
   if (!validVideoId(body?.videoId)) throw Object.assign(new Error("videoId is invalid"), { status: 400 });
   return {
@@ -50,6 +57,7 @@ export function createHandler(options = {}) {
   const token = options.token ?? process.env.STUDY_SHIELD_API_TOKEN ?? "";
   const ttlMs = Number(options.cacheTtlMs ?? (Number(process.env.CACHE_TTL_SECONDS ?? 86400) * 1000));
   const limit = Number(options.rateLimit ?? process.env.RATE_LIMIT_PER_MINUTE ?? 120);
+  const approvedIds = approvedVideoIds(options.approvedVideoIds ?? process.env.APPROVED_YOUTUBE_VIDEO_IDS);
   const cache = new Map();
   const rate = new Map();
 
@@ -74,6 +82,20 @@ export function createHandler(options = {}) {
 
     try {
       const video = normalizeInput(await readJson(request));
+      if (approvedIds.has(video.videoId)) {
+        const value = {
+          allowed: true,
+          category: "educational",
+          confidence: 1,
+          reason: "This video is approved by school policy.",
+          videoId: video.videoId,
+          title: video.title,
+          metadataSource: "policy_override",
+          policyVersion: "3"
+        };
+        console.info(JSON.stringify({ event: "classification", requestId, ...value }));
+        return json(response, 200, { ...value, cached: false }, requestId);
+      }
       const cached = cache.get(video.videoId);
       if (cached && cached.expiresAt > Date.now()) {
         return json(response, 200, { ...cached.value, cached: true }, requestId);

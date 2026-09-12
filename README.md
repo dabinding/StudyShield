@@ -1,14 +1,20 @@
 # Study Shield YouTube MVP
 
-## Classification pipeline (v2)
+## Classification pipeline (v3)
 
 The extension submits only a video ID and canonical URL. The backend resolves metadata directly from YouTube, avoiding stale titles when switching between videos. Timestamps and playlist parameters do not change the cache identity. AI mode uses the Responses API; heuristic mode is only a keyword-based development fixture.
 
 Set `YOUTUBE_API_KEY` on the backend to use YouTube Data API v3 for the title and full description. Without it, the backend uses YouTube oEmbed for the verified title only (oEmbed has no description). Client-provided metadata is ignored. Retrieval failures are reported as unavailable rather than non-educational. Uncertain decisions are cached for at most one minute; other decisions retain the configured TTL. Restart the backend after changing models or policies to clear its cache.
 
+Set `APPROVED_YOUTUBE_VIDEO_IDS` to a comma-separated list of teacher-approved video IDs. These videos are allowed by school policy before metadata retrieval or AI classification, which supports classroom exceptions without weakening the general classifier. For example:
+
+```dotenv
+APPROVED_YOUTUBE_VIDEO_IDS=HtxOsOuY7hA,anotherVideoId
+```
+
 The console logs the resolved title, metadata source, category, reason, and cache status. API failures still follow the configured failure policy, with a separate “Video check unavailable” heading. Playback proceeds silently while checking, and approval does not restart a video you manually paused.
 
-Study Shield lets a YouTube video begin while it sends the ID, title, and description to a backend classifier. Approved videos continue without interruption; denied videos are paused and covered by a block message. It supports normal watch pages, Shorts, live pages, embedded videos, and YouTube's single-page navigation.
+Study Shield lets a regular YouTube video begin while it sends the video ID to a backend classifier. Approved videos continue without interruption; denied videos are paused and covered by a block message. All `/shorts/` videos are blocked locally without an API call. Normal watch pages, live pages, embedded videos, and YouTube's single-page navigation are supported.
 
 ## Run locally
 
@@ -62,11 +68,11 @@ The response includes `allowed`, `category`, `confidence`, `reason`, `videoId`, 
 - Classification uses creator-supplied metadata and can be wrong or deliberately misleading.
 - A denied video can play briefly while classification is in progress, so this mode prioritizes a smooth experience over pre-playback enforcement.
 - The development options page is not an administrative security boundary. Production values should come from managed policy.
-- The MVP has no teacher override, roster, audit database, admin dashboard, or YouTube Data API metadata verification yet.
+- The MVP override is a backend environment setting rather than a teacher-facing workflow. It has no roster, audit database, or admin dashboard yet.
 
 ## Tests
 
-`npm run test:videos` runs ten live regression cases (Minecraft, Roblox, Fortnite, Call of Duty, ASMR, one Short, geometry, algebra, calculus, and forces/motion). It loads `.env`, requires both API keys, fetches actual YouTube title/description, and calls OpenAI directly without the decision cache. This consumes API quota and OpenAI usage. Normal `npm test` remains offline.
+`npm run test:videos` runs ten live AI regression cases (Minecraft, Roblox, Fortnite, Call of Duty, ASMR, one Short, geometry, algebra, calculus, and forces/motion). It loads `.env`, requires both API keys, fetches actual YouTube title/description, and calls OpenAI directly without the decision cache. This consumes API quota and OpenAI usage. Normal `npm test` remains offline and includes the school-approved video override.
 
 Each live case asserts the semantic category and playback decision using the backend's policy function. The `#aura` Short has no description: either non-educational or uncertain is accepted, but playback must be blocked. This does not establish that all Shorts are non-educational. API failures fail the suite rather than counting as successful blocks. The suite prints actual titles, description lengths, reasons, categories, and decisions, without credentials. It tests the backend classification path, not Chrome playback enforcement.
 
