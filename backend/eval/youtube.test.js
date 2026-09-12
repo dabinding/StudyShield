@@ -19,7 +19,7 @@ for (const example of cases) {
     const result = await openAIClassify(metadata);
     const allowed = isAllowed(result.category, process.env.ALLOW_UNCERTAIN === 'true');
     console.info(JSON.stringify({ videoId, title: metadata.title, descriptionLength: metadata.description.length,
-      expected: example.expected, actual: result.category, allowed, reason: result.reason, model: process.env.OPENAI_MODEL ?? 'gpt-5.4-nano' }));
+      expected: example.expected, actual: result.category, allowed, reason: result.reason, model: process.env.OPENAI_MODEL ?? 'gpt-5-mini' }));
     assert.equal(allowed, example.expected === 'educational', result.reason);
     // Sparse metadata cannot establish the Shorts example's semantic category.
     // Its required outcome is blocked; uncertain is acceptable only for this case.

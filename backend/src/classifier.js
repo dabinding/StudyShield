@@ -58,7 +58,7 @@ export function heuristicClassify({ title, description }) {
 
 export async function openAIClassify(video, options = {}) {
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
-  const model = options.model ?? process.env.OPENAI_MODEL ?? "gpt-5.4-nano";
+  const model = options.model ?? process.env.OPENAI_MODEL ?? "gpt-5-mini";
   const fetchImpl = options.fetchImpl ?? fetch;
   if (!apiKey) throw new Error("OPENAI_API_KEY is required when CLASSIFIER_MODE=openai");
 
