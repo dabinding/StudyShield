@@ -17,7 +17,7 @@
   }
 
   function guardPlayback(event) {
-    if (state === "checking" || state === "blocked") {
+    if (state === "blocked") {
       event.target.pause();
     }
   }
@@ -31,7 +31,7 @@
     });
   }
 
-  function showOverlay(kind, reason = "") {
+  function showOverlay(reason = "") {
     let overlay = document.getElementById("study-shield-overlay");
     if (!overlay) {
       overlay = document.createElement("section");
@@ -40,17 +40,13 @@
       overlay.setAttribute("aria-live", "assertive");
       document.documentElement.appendChild(overlay);
     }
-    const checking = kind === "checking";
-    const indicator = checking
-      ? `<img class="study-shield-loading" src="${chrome.runtime.getURL("loading.webp")}" alt="" aria-hidden="true">`
-      : `<div class="study-shield-mark" aria-hidden="true">🛡</div>`;
     overlay.hidden = false;
     overlay.innerHTML = `
       <div class="study-shield-card">
-        ${indicator}
-        <h1>${checking ? "Checking this video" : "Video blocked by Study Shield"}</h1>
-        <p>${checking ? "Playback will begin if this video is approved for learning." : escapeHtml(reason)}</p>
-        <small>${checking ? "Using the title and description for this first version." : "Ask your teacher if you believe this video supports your assignment."}</small>
+        <div class="study-shield-mark" aria-hidden="true">🛡</div>
+        <h1>Video blocked by Study Shield</h1>
+        <p>${escapeHtml(reason)}</p>
+        <small>Ask your teacher if you believe this video supports your assignment.</small>
       </div>`;
   }
 
@@ -88,8 +84,7 @@
   async function checkCurrentVideo(videoId) {
     const sequence = ++checkSequence;
     state = "checking";
-    pauseAll();
-    showOverlay("checking");
+    hideOverlay();
     const data = await waitForMetadata(sequence);
     if (!data || sequence !== checkSequence || videoId !== activeVideoId) return;
 
@@ -112,7 +107,7 @@
     } else {
       state = "blocked";
       pauseAll();
-      showOverlay("blocked", result?.decision?.reason || "This video is not approved for school use.");
+      showOverlay(result?.decision?.reason || "This video is not approved for school use.");
     }
   }
 
@@ -120,7 +115,7 @@
     installVideoGuards();
     const videoId = parseVideoId();
     if (videoId === activeVideoId) {
-      if (state === "checking" || state === "blocked") pauseAll();
+      if (state === "blocked") pauseAll();
       return;
     }
     activeVideoId = videoId;

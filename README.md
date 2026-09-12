@@ -1,6 +1,6 @@
 # Study Shield YouTube MVP
 
-Study Shield pauses a YouTube video before playback, sends its ID, title, and description to a backend classifier, and resumes only approved educational videos. It supports normal watch pages, Shorts, live pages, embedded videos, and YouTube's single-page navigation.
+Study Shield lets a YouTube video begin while it sends the ID, title, and description to a backend classifier. Approved videos continue without interruption; denied videos are paused and covered by a block message. It supports normal watch pages, Shorts, live pages, embedded videos, and YouTube's single-page navigation.
 
 ## Run locally
 
@@ -52,7 +52,7 @@ The response includes `allowed`, `category`, `confidence`, `reason`, `videoId`, 
 
 - YouTube changes its markup periodically. Title extraction has several fallbacks, but integration tests against YouTube should run regularly.
 - Classification uses creator-supplied metadata and can be wrong or deliberately misleading.
-- A browser extension cannot stop network buffering before a classification decision; it prevents playback, not the initial video request.
+- A denied video can play briefly while classification is in progress, so this mode prioritizes a smooth experience over pre-playback enforcement.
 - The development options page is not an administrative security boundary. Production values should come from managed policy.
 - The MVP has no teacher override, roster, audit database, admin dashboard, or YouTube Data API metadata verification yet.
 

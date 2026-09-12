@@ -39,15 +39,6 @@
   font-size: 30px;
 }
 
-.study-shield-loading {
-  display: block;
-  width: 96px;
-  height: 96px;
-  margin: 0 auto 18px;
-  border-radius: 18px;
-  object-fit: cover;
-}
-
 .study-shield-card h1 { margin: 0 0 10px; font-size: 24px; }
 .study-shield-card p { margin: 0; color: #cbd5e1; font-size: 15px; line-height: 1.55; }
 .study-shield-card small { display: block; margin-top: 20px; color: #94a3b8; }
