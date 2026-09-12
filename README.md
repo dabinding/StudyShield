@@ -66,6 +66,10 @@ The response includes `allowed`, `category`, `confidence`, `reason`, `videoId`, 
 
 ## Tests
 
+`npm run test:videos` runs ten live regression cases (Minecraft, Roblox, Fortnite, Call of Duty, ASMR, one Short, geometry, algebra, calculus, and forces/motion). It loads `.env`, requires both API keys, fetches actual YouTube title/description, and calls OpenAI directly without the decision cache. This consumes API quota and OpenAI usage. Normal `npm test` remains offline.
+
+Each live case asserts the semantic category and playback decision using the backend's policy function. The `#aura` Short has no description: either non-educational or uncertain is accepted, but playback must be blocked. This does not establish that all Shorts are non-educational. API failures fail the suite rather than counting as successful blocks. The suite prints actual titles, description lengths, reasons, categories, and decisions, without credentials. It tests the backend classification path, not Chrome playback enforcement.
+
 ```bash
 npm test
 npm run check

@@ -1,5 +1,6 @@
 import { createClassifier } from "./classifier.js";
 import { fetchMetadata } from "./metadata.js";
+import { isAllowed } from './policy.js';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -80,8 +81,7 @@ export function createHandler(options = {}) {
 
       const metadata = await resolveMetadata(video);
       const classification = await classifier(metadata);
-      const allowed = classification.category === "educational" ||
-        (classification.category === "uncertain" && allowUncertain);
+      const allowed = isAllowed(classification.category, allowUncertain);
       const value = { allowed, ...classification, videoId: video.videoId, title: metadata.title, metadataSource: metadata.metadataSource, policyVersion: '2' };
       console.info(JSON.stringify({ event: 'classification', requestId, ...value }));
       cache.set(video.videoId, { value, expiresAt: Date.now() + (classification.category === 'uncertain' ? Math.min(ttlMs, 60000) : ttlMs) });
