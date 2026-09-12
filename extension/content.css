@@ -55,14 +55,12 @@
 }
 
 .study-shield-mark {
-  width: 56px;
-  height: 56px;
+  width: 90px;
+  height: 104px;
   margin: 0 auto 18px;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  background: #2563eb;
-  font-size: 30px;
+  display: block;
+  border-radius: 14px;
+  object-fit: cover;
 }
 
 .study-shield-card h1 { margin: 0 0 10px; font-size: 24px; }

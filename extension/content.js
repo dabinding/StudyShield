@@ -48,7 +48,7 @@
     overlay.hidden = false;
     overlay.innerHTML = `
       <div class="study-shield-card">
-        <div class="study-shield-mark" aria-hidden="true">🛡</div>
+        <img class="study-shield-mark" src="${chrome.runtime.getURL("assets/blocked-shield.webp")}" alt="" aria-hidden="true">
         <h1>${unavailable ? 'Video check unavailable' : 'Video blocked by Study Shield'}</h1>
         <p>${escapeHtml(reason)}</p>
         <small>Ask your teacher if you believe this video supports your assignment.</small>
