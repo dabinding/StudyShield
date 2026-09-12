@@ -6,6 +6,11 @@ test("heuristic classifier recognizes obvious lesson metadata", () => {
   assert.equal(heuristicClassify({ title: "Algebra lesson", description: "Math tutorial" }).category, "educational");
 });
 
+test("recognizes the reported Introduction to Geometry video", () => {
+  const result = heuristicClassify({ title: "Introduction to Geometry", description: "" });
+  assert.equal(result.category, "educational");
+});
+
 test("heuristic classifier recognizes obvious gameplay metadata", () => {
   assert.equal(heuristicClassify({ title: "Epic gameplay", description: "Funny moments" }).category, "non_educational");
 });

@@ -32,8 +32,12 @@ export function heuristicClassify({ title, description }) {
   const text = `${title} ${description}`.toLowerCase();
   const educational = [
     "tutorial", "lesson", "lecture", "explained", "how to", "course",
-    "mathematics", "math", "science", "history", "grammar", "coding",
-    "programming", "educational", "documentary", "classroom"
+    "introduction to", "study guide", "practice problems", "worked example",
+    "mathematics", "math", "arithmetic", "algebra", "geometry", "calculus",
+    "statistics", "trigonometry", "science", "biology", "chemistry", "physics",
+    "astronomy", "geology", "history", "geography", "economics", "grammar",
+    "literature", "coding", "programming", "educational", "documentary",
+    "classroom", "exam review", "test preparation"
   ];
   const entertainment = [
     "gameplay", "walkthrough", "let's play", "lets play", "music video",
