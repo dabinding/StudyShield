@@ -62,3 +62,7 @@ The response includes `allowed`, `category`, `confidence`, `reason`, `videoId`, 
 npm test
 npm run check
 ```
+
+## Browser diagnostics
+
+Open Developer Tools on the YouTube page and filter the Console for `Study Shield`. For each video navigation, the extension logs the parsed URL and video ID, the metadata sent for classification, and the returned category, confidence, cache status, or request error. Descriptions are not written to the console.

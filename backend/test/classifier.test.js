@@ -15,6 +15,11 @@ test("heuristic classifier recognizes obvious gameplay metadata", () => {
   assert.equal(heuristicClassify({ title: "Epic gameplay", description: "Funny moments" }).category, "non_educational");
 });
 
+test("recognizes the reported Tik Tok entertainment video", () => {
+  const result = heuristicClassify({ title: "Tik Tokers Having A Bad Day", description: "" });
+  assert.equal(result.category, "non_educational");
+});
+
 test("normalization safely handles malformed output", () => {
   assert.deepEqual(normalizeResult({ category: "other", confidence: 5, reason: "" }), {
     category: "uncertain",

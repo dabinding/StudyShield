@@ -41,7 +41,8 @@ export function heuristicClassify({ title, description }) {
   ];
   const entertainment = [
     "gameplay", "walkthrough", "let's play", "lets play", "music video",
-    "prank", "reaction", "funny moments", "trailer", "speedrun", "gaming"
+    "prank", "reaction", "funny moments", "trailer", "speedrun", "gaming",
+    "tik tok", "tiktok", "compilation", "fails", "meme", "challenge", "vlog"
   ];
   const eduHits = educational.filter((term) => text.includes(term)).length;
   const entertainmentHits = entertainment.filter((term) => text.includes(term)).length;

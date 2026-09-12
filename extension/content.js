@@ -88,6 +88,13 @@
     const data = await waitForMetadata(sequence);
     if (!data || sequence !== checkSequence || videoId !== activeVideoId) return;
 
+    console.info("[Study Shield] Sending video for classification", {
+      url: location.href,
+      videoId,
+      title: data.title,
+      descriptionLength: data.description.length
+    });
+
     let result;
     try {
       result = await chrome.runtime.sendMessage({
@@ -98,6 +105,17 @@
       result = { decision: { allowed: false, reason: "Study Shield could not contact its extension service." } };
     }
     if (sequence !== checkSequence || videoId !== activeVideoId) return;
+
+    console.info("[Study Shield] Classification result", {
+      url: location.href,
+      videoId,
+      requestSucceeded: Boolean(result?.ok),
+      allowed: Boolean(result?.decision?.allowed),
+      category: result?.decision?.category ?? "unknown",
+      confidence: result?.decision?.confidence ?? 0,
+      cached: Boolean(result?.decision?.cached),
+      error: result?.error ?? null
+    });
 
     if (result?.decision?.allowed) {
       state = "allowed";
@@ -125,6 +143,10 @@
       hideOverlay();
       return;
     }
+    console.info("[Study Shield] Parsed YouTube video URL", {
+      url: location.href,
+      videoId
+    });
     checkCurrentVideo(videoId);
   }
 
