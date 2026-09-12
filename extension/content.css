@@ -1,0 +1,37 @@
+#study-shield-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 18, 31, 0.96);
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#study-shield-overlay[hidden] { display: none; }
+
+.study-shield-card {
+  width: min(520px, calc(100vw - 48px));
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  background: #172033;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
+.study-shield-mark {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #2563eb;
+  font-size: 30px;
+}
+
+.study-shield-card h1 { margin: 0 0 10px; font-size: 24px; }
+.study-shield-card p { margin: 0; color: #cbd5e1; font-size: 15px; line-height: 1.55; }
+.study-shield-card small { display: block; margin-top: 20px; color: #94a3b8; }

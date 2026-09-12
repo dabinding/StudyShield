@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "apiBaseUrl": { "title": "Study Shield API URL", "type": "string" },
+    "apiToken": { "title": "Study Shield API token", "type": "string" },
+    "failMode": { "title": "Failure mode", "type": "string", "enum": ["open", "closed"] },
+    "timeoutMs": { "title": "API timeout in milliseconds", "type": "integer", "minimum": 1000, "maximum": 30000 }
+  }
+}

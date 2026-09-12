@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Study Shield settings</title>
+    <style>
+      body { max-width: 680px; margin: 48px auto; padding: 0 24px; font: 15px/1.5 system-ui; color: #172033; }
+      label { display: block; margin: 18px 0 6px; font-weight: 650; }
+      input, select { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 8px; }
+      button { margin-top: 24px; padding: 10px 18px; border: 0; border-radius: 8px; background: #2563eb; color: white; font-weight: 700; }
+      #status { margin-left: 12px; color: #15803d; }
+    </style>
+  </head>
+  <body>
+    <h1>Study Shield settings</h1>
+    <p>Local settings are intended for development. Chrome Enterprise managed storage overrides them in production.</p>
+    <form id="settings">
+      <label for="apiBaseUrl">Backend URL</label>
+      <input id="apiBaseUrl" type="url" required>
+      <label for="apiToken">API token</label>
+      <input id="apiToken" type="password" autocomplete="off">
+      <label for="failMode">When the classifier is unavailable</label>
+      <select id="failMode"><option value="closed">Block playback</option><option value="open">Allow playback</option></select>
+      <button type="submit">Save</button><span id="status" role="status"></span>
+    </form>
+    <script src="options.js"></script>
+  </body>
+</html>
