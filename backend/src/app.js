@@ -1,6 +1,7 @@
 import { createClassifier } from "./classifier.js";
 import { fetchMetadata } from "./metadata.js";
 import { isAllowed } from './policy.js';
+import { TtlLruCache } from "./cache.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -56,9 +57,11 @@ export function createHandler(options = {}) {
   const allowUncertain = options.allowUncertain ?? process.env.ALLOW_UNCERTAIN === "true";
   const token = options.token ?? process.env.STUDY_SHIELD_API_TOKEN ?? "";
   const ttlMs = Number(options.cacheTtlMs ?? (Number(process.env.CACHE_TTL_SECONDS ?? 86400) * 1000));
+  const cacheMaxEntries = Number(options.cacheMaxEntries ?? process.env.CACHE_MAX_ENTRIES ?? 5000);
   const limit = Number(options.rateLimit ?? process.env.RATE_LIMIT_PER_MINUTE ?? 120);
   const approvedIds = approvedVideoIds(options.approvedVideoIds ?? process.env.APPROVED_YOUTUBE_VIDEO_IDS);
-  const cache = new Map();
+  const cache = options.cache ?? new TtlLruCache({ maxEntries: cacheMaxEntries });
+  const inFlight = new Map();
   const rate = new Map();
 
   return async function handler(request, response) {
@@ -96,18 +99,37 @@ export function createHandler(options = {}) {
         console.info(JSON.stringify({ event: "classification", requestId, ...value }));
         return json(response, 200, { ...value, cached: false }, requestId);
       }
-      const cached = cache.get(video.videoId);
-      if (cached && cached.expiresAt > Date.now()) {
-        return json(response, 200, { ...cached.value, cached: true }, requestId);
+      const cacheKey = `youtube:${video.videoId}`;
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        console.info(JSON.stringify({ event: "cache_hit", requestId, videoId: video.videoId }));
+        return json(response, 200, { ...cached, cached: true }, requestId);
       }
 
-      const metadata = await resolveMetadata(video);
-      const classification = await classifier(metadata);
-      const allowed = isAllowed(classification.category, allowUncertain);
-      const value = { allowed, ...classification, videoId: video.videoId, title: metadata.title, metadataSource: metadata.metadataSource, policyVersion: '2' };
-      console.info(JSON.stringify({ event: 'classification', requestId, ...value }));
-      cache.set(video.videoId, { value, expiresAt: Date.now() + (classification.category === 'uncertain' ? Math.min(ttlMs, 60000) : ttlMs) });
-      return json(response, 200, { ...value, cached: false }, requestId);
+      const pending = inFlight.get(cacheKey);
+      if (pending) {
+        const value = await pending;
+        console.info(JSON.stringify({ event: "cache_coalesced", requestId, videoId: video.videoId }));
+        return json(response, 200, { ...value, cached: true }, requestId);
+      }
+
+      const classificationTask = (async () => {
+        const metadata = await resolveMetadata(video);
+        const classification = await classifier(metadata);
+        const allowed = isAllowed(classification.category, allowUncertain);
+        const value = { allowed, ...classification, videoId: video.videoId, title: metadata.title, metadataSource: metadata.metadataSource, policyVersion: '3' };
+        console.info(JSON.stringify({ event: 'classification', requestId, ...value }));
+        const resultTtl = classification.category === 'uncertain' ? Math.min(ttlMs, 60000) : ttlMs;
+        cache.set(cacheKey, value, resultTtl);
+        return value;
+      })();
+      inFlight.set(cacheKey, classificationTask);
+      try {
+        const value = await classificationTask;
+        return json(response, 200, { ...value, cached: false }, requestId);
+      } finally {
+        if (inFlight.get(cacheKey) === classificationTask) inFlight.delete(cacheKey);
+      }
     } catch (error) {
       const status = error.status ?? (error.message?.includes("required") ? 503 : 500);
       const publicMessage = status < 500 ? error.message : "classification_unavailable";

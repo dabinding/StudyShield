@@ -20,22 +20,52 @@ async function invoke(handler, { body, token = "" }) {
 
 test("classifies and caches a video", async () => {
   let calls = 0;
+  let metadataCalls = 0;
   const handler = createHandler({
     token: "test-token",
-    resolveMetadata: async video => ({ ...video, title: 'Algebra lesson', description: 'Equations' }),
+    resolveMetadata: async video => {
+      metadataCalls += 1;
+      return { ...video, title: 'Algebra lesson', description: 'Equations' };
+    },
     classifier: async () => {
       calls += 1;
       return { category: "educational", confidence: 0.95, reason: "It teaches algebra." };
     }
   });
 
-  const input = { body: { videoId: "abc123XYZ_-", title: "Algebra lesson", description: "Equations" }, token: "test-token" };
-  const first = await invoke(handler, input);
-  const second = await invoke(handler, input);
+  const first = await invoke(handler, { body: { videoId: "abc123XYZ_-", url: "https://www.youtube.com/watch?v=abc123XYZ_-&t=40s" }, token: "test-token" });
+  const second = await invoke(handler, { body: { videoId: "abc123XYZ_-", url: "https://www.youtube.com/watch?v=abc123XYZ_-&list=classroom" }, token: "test-token" });
   assert.equal(first.body.allowed, true);
   assert.equal(first.body.cached, false);
   assert.equal(second.body.cached, true);
   assert.equal(calls, 1);
+  assert.equal(metadataCalls, 1);
+});
+
+test("coalesces simultaneous requests for the same video", async () => {
+  let classifierCalls = 0;
+  let releaseMetadata;
+  const metadataReady = new Promise(resolve => { releaseMetadata = resolve; });
+  const handler = createHandler({
+    resolveMetadata: async video => {
+      await metadataReady;
+      return { ...video, title: "Physics lesson", description: "Forces and motion" };
+    },
+    classifier: async () => {
+      classifierCalls += 1;
+      return { category: "educational", confidence: 0.9, reason: "It teaches physics." };
+    }
+  });
+
+  const input = { body: { videoId: "sameVideo01" } };
+  const first = invoke(handler, input);
+  const second = invoke(handler, input);
+  await new Promise(resolve => setImmediate(resolve));
+  releaseMetadata();
+  const responses = await Promise.all([first, second]);
+
+  assert.equal(classifierCalls, 1);
+  assert.deepEqual(responses.map(response => response.body.cached).sort(), [false, true]);
 });
 
 test("rejects an invalid video id", async () => {

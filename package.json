@@ -8,7 +8,7 @@
     "start": "node --env-file=.env backend/src/server.js",
     "test": "node --test backend/test/*.test.js",
     "test:videos": "node --env-file=.env --test backend/eval/youtube.test.js",
-    "check": "node --check backend/src/server.js && node --check backend/src/classifier.js && node --check extension/background.js && node --check extension/content.js"
+    "check": "node --check backend/src/server.js && node --check backend/src/classifier.js && node --check backend/src/cache.js && node --check extension/background.js && node --check extension/content.js"
   },
   "engines": {
     "node": ">=20"
