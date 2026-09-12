@@ -1,4 +1,5 @@
 import { createClassifier } from "./classifier.js";
+import { fetchMetadata } from "./metadata.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -18,12 +19,9 @@ function validVideoId(value) {
 
 function normalizeInput(body) {
   if (!validVideoId(body?.videoId)) throw Object.assign(new Error("videoId is invalid"), { status: 400 });
-  if (typeof body?.title !== "string" || !body.title.trim()) {
-    throw Object.assign(new Error("title is required"), { status: 400 });
-  }
   return {
     videoId: body.videoId,
-    title: body.title.trim().slice(0, 500),
+    title: typeof body.title === 'string' ? body.title.trim().slice(0, 500) : '',
     description: typeof body.description === "string" ? body.description.trim().slice(0, 5000) : "",
     url: typeof body.url === "string" ? body.url.slice(0, 2048) : ""
   };
@@ -46,6 +44,7 @@ async function readJson(request) {
 
 export function createHandler(options = {}) {
   const classifier = options.classifier ?? createClassifier();
+  const resolveMetadata = options.resolveMetadata ?? fetchMetadata;
   const allowUncertain = options.allowUncertain ?? process.env.ALLOW_UNCERTAIN === "true";
   const token = options.token ?? process.env.STUDY_SHIELD_API_TOKEN ?? "";
   const ttlMs = Number(options.cacheTtlMs ?? (Number(process.env.CACHE_TTL_SECONDS ?? 86400) * 1000));
@@ -79,11 +78,13 @@ export function createHandler(options = {}) {
         return json(response, 200, { ...cached.value, cached: true }, requestId);
       }
 
-      const classification = await classifier(video);
+      const metadata = await resolveMetadata(video);
+      const classification = await classifier(metadata);
       const allowed = classification.category === "educational" ||
         (classification.category === "uncertain" && allowUncertain);
-      const value = { allowed, ...classification, videoId: video.videoId };
-      cache.set(video.videoId, { value, expiresAt: Date.now() + ttlMs });
+      const value = { allowed, ...classification, videoId: video.videoId, title: metadata.title, metadataSource: metadata.metadataSource, policyVersion: '2' };
+      console.info(JSON.stringify({ event: 'classification', requestId, ...value }));
+      cache.set(video.videoId, { value, expiresAt: Date.now() + (classification.category === 'uncertain' ? Math.min(ttlMs, 60000) : ttlMs) });
       return json(response, 200, { ...value, cached: false }, requestId);
     } catch (error) {
       const status = error.status ?? (error.message?.includes("required") ? 503 : 500);

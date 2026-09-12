@@ -1,5 +1,13 @@
 # Study Shield YouTube MVP
 
+## Classification pipeline (v2)
+
+The extension submits only a video ID and canonical URL. The backend resolves metadata directly from YouTube, avoiding stale titles when switching between videos. Timestamps and playlist parameters do not change the cache identity. AI mode uses the Responses API; heuristic mode is only a keyword-based development fixture.
+
+Set `YOUTUBE_API_KEY` on the backend to use YouTube Data API v3 for the title and full description. Without it, the backend uses YouTube oEmbed for the verified title only (oEmbed has no description). Client-provided metadata is ignored. Retrieval failures are reported as unavailable rather than non-educational. Uncertain decisions are cached for at most one minute; other decisions retain the configured TTL. Restart the backend after changing models or policies to clear its cache.
+
+The console logs the resolved title, metadata source, category, reason, and cache status. API failures still follow the configured failure policy, with a separate “Video check unavailable” heading. Playback proceeds silently while checking, and approval does not restart a video you manually paused.
+
 Study Shield lets a YouTube video begin while it sends the ID, title, and description to a backend classifier. Approved videos continue without interruption; denied videos are paused and covered by a block message. It supports normal watch pages, Shorts, live pages, embedded videos, and YouTube's single-page navigation.
 
 ## Run locally

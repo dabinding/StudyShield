@@ -31,7 +31,7 @@
     });
   }
 
-  function showOverlay(reason = "") {
+  function showOverlay(reason = "", unavailable = false) {
     let overlay = document.getElementById("study-shield-overlay");
     if (!overlay) {
       overlay = document.createElement("section");
@@ -44,7 +44,7 @@
     overlay.innerHTML = `
       <div class="study-shield-card">
         <div class="study-shield-mark" aria-hidden="true">🛡</div>
-        <h1>Video blocked by Study Shield</h1>
+        <h1>${unavailable ? 'Video check unavailable' : 'Video blocked by Study Shield'}</h1>
         <p>${escapeHtml(reason)}</p>
         <small>Ask your teacher if you believe this video supports your assignment.</small>
       </div>`;
@@ -61,45 +61,22 @@
     return node.innerHTML;
   }
 
-  function metadata() {
-    const meta = (selector) => document.querySelector(selector)?.content?.trim() ?? "";
-    const title = meta('meta[name="title"]') || meta('meta[property="og:title"]') ||
-      document.querySelector("h1.ytd-watch-metadata yt-formatted-string")?.textContent?.trim() ||
-      document.title.replace(/\s*-\s*YouTube\s*$/, "").trim();
-    const description = meta('meta[name="description"]') || meta('meta[property="og:description"]') ||
-      document.querySelector("#description-inline-expander")?.textContent?.trim() || "";
-    return { title, description };
-  }
-
-  async function waitForMetadata(sequence) {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const found = metadata();
-      if (sequence !== checkSequence) return null;
-      if (found.title && !/^youtube$/i.test(found.title)) return found;
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    return metadata();
-  }
-
   async function checkCurrentVideo(videoId) {
     const sequence = ++checkSequence;
     state = "checking";
     hideOverlay();
-    const data = await waitForMetadata(sequence);
-    if (!data || sequence !== checkSequence || videoId !== activeVideoId) return;
 
     console.info("[Study Shield] Sending video for classification", {
       url: location.href,
       videoId,
-      title: data.title,
-      descriptionLength: data.description.length
+      metadataSource: 'backend'
     });
 
     let result;
     try {
       result = await chrome.runtime.sendMessage({
         type: "CLASSIFY_YOUTUBE_VIDEO",
-        video: { videoId, url: location.href, ...data }
+        video: { videoId, url: `https://www.youtube.com/watch?v=${videoId}` }
       });
     } catch {
       result = { decision: { allowed: false, reason: "Study Shield could not contact its extension service." } };
@@ -114,18 +91,19 @@
       category: result?.decision?.category ?? "unknown",
       confidence: result?.decision?.confidence ?? 0,
       cached: Boolean(result?.decision?.cached),
+      title: result?.decision?.title,
+      metadataSource: result?.decision?.metadataSource,
+      reason: result?.decision?.reason,
       error: result?.error ?? null
     });
 
     if (result?.decision?.allowed) {
       state = "allowed";
       hideOverlay();
-      const video = document.querySelector("video");
-      if (video) video.play().catch(() => {});
     } else {
       state = "blocked";
       pauseAll();
-      showOverlay(result?.decision?.reason || "This video is not approved for school use.");
+      showOverlay(result?.decision?.reason || "This video is not approved for school use.", !result?.ok);
     }
   }
 

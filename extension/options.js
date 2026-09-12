@@ -1,4 +1,4 @@
-const defaults = { apiBaseUrl: "http://localhost:8787", apiToken: "", failMode: "closed", timeoutMs: 15000 };
+const defaults = { apiBaseUrl: "http://localhost:8787", apiToken: "", failMode: "closed", timeoutMs: 25000 };
 
 async function load() {
   const config = await chrome.storage.local.get(defaults);

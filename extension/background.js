@@ -2,7 +2,7 @@ const DEFAULT_CONFIG = {
   apiBaseUrl: "http://localhost:8787",
   apiToken: "",
   failMode: "closed",
-  timeoutMs: 15000
+  timeoutMs: 25000
 };
 
 async function getConfig() {

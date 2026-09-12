@@ -22,6 +22,7 @@ test("classifies and caches a video", async () => {
   let calls = 0;
   const handler = createHandler({
     token: "test-token",
+    resolveMetadata: async video => ({ ...video, title: 'Algebra lesson', description: 'Equations' }),
     classifier: async () => {
       calls += 1;
       return { category: "educational", confidence: 0.95, reason: "It teaches algebra." };
