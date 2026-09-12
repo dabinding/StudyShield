@@ -18,6 +18,32 @@
 
 #study-shield-overlay[hidden] { display: none; }
 
+#study-shield-loading {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(23, 32, 51, 0.94);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  color: #f8fafc;
+  font: 600 13px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#study-shield-loading[hidden] { display: none; }
+
+#study-shield-loading img {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
 .study-shield-card {
   width: min(520px, calc(100vw - 48px));
   padding: 32px;

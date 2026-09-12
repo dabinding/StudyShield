@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Study Shield",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Checks YouTube videos for educational purpose and blocks denied playback.",
   "permissions": ["storage"],
   "host_permissions": ["<all_urls>"],
@@ -13,6 +13,12 @@
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/loading.webp"],
+      "matches": ["*://*.youtube.com/*"]
     }
   ],
   "options_page": "options.html"

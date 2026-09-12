@@ -1,5 +1,6 @@
 (() => {
   let activeVideoId = null;
+  let activeVideoKey = null;
   let state = "idle";
   let checkSequence = 0;
 
@@ -14,6 +15,10 @@
     document.querySelectorAll("video").forEach((video) => {
       if (!video.paused) video.pause();
     });
+  }
+
+  function isShortsPage(urlString = location.href) {
+    return new URL(urlString).pathname.startsWith("/shorts/");
   }
 
   function guardPlayback(event) {
@@ -55,6 +60,26 @@
     if (overlay) overlay.hidden = true;
   }
 
+  function showLoading() {
+    let loading = document.getElementById("study-shield-loading");
+    if (!loading) {
+      loading = document.createElement("div");
+      loading.id = "study-shield-loading";
+      loading.setAttribute("role", "status");
+      loading.setAttribute("aria-live", "polite");
+      loading.innerHTML = `
+        <img src="${chrome.runtime.getURL("assets/loading.webp")}" alt="">
+        <span>Checking video…</span>`;
+      document.documentElement.appendChild(loading);
+    }
+    loading.hidden = false;
+  }
+
+  function hideLoading() {
+    const loading = document.getElementById("study-shield-loading");
+    if (loading) loading.hidden = true;
+  }
+
   function escapeHtml(value) {
     const node = document.createElement("span");
     node.textContent = value;
@@ -65,6 +90,7 @@
     const sequence = ++checkSequence;
     state = "checking";
     hideOverlay();
+    showLoading();
 
     console.info("[Study Shield] Sending video for classification", {
       url: location.href,
@@ -82,6 +108,8 @@
       result = { decision: { allowed: false, reason: "Study Shield could not contact its extension service." } };
     }
     if (sequence !== checkSequence || videoId !== activeVideoId) return;
+
+    hideLoading();
 
     console.info("[Study Shield] Classification result", {
       url: location.href,
@@ -110,12 +138,16 @@
   function handleLocation() {
     installVideoGuards();
     const videoId = parseVideoId();
-    if (videoId === activeVideoId) {
+    const shorts = isShortsPage();
+    const videoKey = videoId ? `${shorts ? "shorts" : "video"}:${videoId}` : null;
+    if (videoKey === activeVideoKey) {
       if (state === "blocked") pauseAll();
       return;
     }
+    activeVideoKey = videoKey;
     activeVideoId = videoId;
     checkSequence += 1;
+    hideLoading();
     if (!videoId) {
       state = "idle";
       hideOverlay();
@@ -125,6 +157,16 @@
       url: location.href,
       videoId
     });
+    if (shorts) {
+      state = "blocked";
+      pauseAll();
+      showOverlay("All YouTube Shorts are blocked by school policy.");
+      console.info("[Study Shield] YouTube Short blocked without classification", {
+        url: location.href,
+        videoId
+      });
+      return;
+    }
     checkCurrentVideo(videoId);
   }
 
