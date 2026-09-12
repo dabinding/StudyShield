@@ -41,10 +41,13 @@
       document.documentElement.appendChild(overlay);
     }
     const checking = kind === "checking";
+    const indicator = checking
+      ? `<img class="study-shield-loading" src="${chrome.runtime.getURL("loading.webp")}" alt="" aria-hidden="true">`
+      : `<div class="study-shield-mark" aria-hidden="true">🛡</div>`;
     overlay.hidden = false;
     overlay.innerHTML = `
       <div class="study-shield-card">
-        <div class="study-shield-mark" aria-hidden="true">${checking ? "…" : "🛡"}</div>
+        ${indicator}
         <h1>${checking ? "Checking this video" : "Video blocked by Study Shield"}</h1>
         <p>${checking ? "Playback will begin if this video is approved for learning." : escapeHtml(reason)}</p>
         <small>${checking ? "Using the title and description for this first version." : "Ask your teacher if you believe this video supports your assignment."}</small>

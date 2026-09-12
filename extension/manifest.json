@@ -15,5 +15,11 @@
       "run_at": "document_start"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["loading.webp"],
+      "matches": ["*://*.youtube.com/*"]
+    }
+  ],
   "options_page": "options.html"
 }
