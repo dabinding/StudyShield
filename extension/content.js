@@ -136,11 +136,9 @@
       return;
     }
     new MutationObserver(handleLocation).observe(document.documentElement, { childList: true, subtree: true });
-    window.addEventListener("yt-navigate-start", () => {
-      state = "checking";
-      pauseAll();
-      showOverlay("checking");
-    }, true);
+    // Do not block YouTube-wide navigation. Search, channel pages, and the
+    // YouTube header must remain usable even when the current video is denied.
+    window.addEventListener("yt-navigate-start", () => setTimeout(handleLocation, 0), true);
     window.addEventListener("yt-navigate-finish", handleLocation, true);
     setInterval(handleLocation, 500);
     handleLocation();
