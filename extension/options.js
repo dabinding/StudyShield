@@ -1,8 +1,14 @@
-const defaults = { apiBaseUrl: "http://localhost:8787", apiToken: "", failMode: "closed", timeoutMs: 25000 };
+const defaults = {
+  apiBaseUrl: "http://localhost:8787", apiToken: "", failMode: "closed", timeoutMs: 25000,
+  studentName: "", deviceLabel: "", screenshotEnabled: false, screenshotIntervalSeconds: 60
+};
 
 async function load() {
   const config = await chrome.storage.local.get(defaults);
-  for (const key of ["apiBaseUrl", "apiToken", "failMode"]) document.getElementById(key).value = config[key];
+  for (const key of ["apiBaseUrl", "apiToken", "failMode", "studentName", "deviceLabel", "screenshotIntervalSeconds"]) {
+    document.getElementById(key).value = config[key];
+  }
+  document.getElementById("screenshotEnabled").checked = config.screenshotEnabled;
 }
 
 document.getElementById("settings").addEventListener("submit", async (event) => {
@@ -10,7 +16,11 @@ document.getElementById("settings").addEventListener("submit", async (event) => 
   await chrome.storage.local.set({
     apiBaseUrl: document.getElementById("apiBaseUrl").value.replace(/\/$/, ""),
     apiToken: document.getElementById("apiToken").value,
-    failMode: document.getElementById("failMode").value
+    failMode: document.getElementById("failMode").value,
+    studentName: document.getElementById("studentName").value.trim(),
+    deviceLabel: document.getElementById("deviceLabel").value.trim(),
+    screenshotEnabled: document.getElementById("screenshotEnabled").checked,
+    screenshotIntervalSeconds: Number(document.getElementById("screenshotIntervalSeconds").value) || 60
   });
   const status = document.getElementById("status");
   status.textContent = "Saved";

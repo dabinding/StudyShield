@@ -2,6 +2,8 @@ import { createClassifier } from "./classifier.js";
 import { fetchMetadata } from "./metadata.js";
 import { isAllowed } from './policy.js';
 import { TtlLruCache } from "./cache.js";
+import { ClassroomStore } from "./classroom-store.js";
+import { readFile } from "node:fs/promises";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -13,6 +15,40 @@ function json(response, status, body, requestId) {
     "X-Request-Id": requestId
   });
   response.end(JSON.stringify(body));
+}
+
+const DASHBOARD_ROOT = new URL("../public/dashboard/", import.meta.url);
+const CONTENT_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2"
+};
+
+async function serveDashboardAsset(response, pathname, requestId) {
+  const relativePath = pathname === "/dashboard" || pathname === "/dashboard/"
+    ? "index.html"
+    : pathname.slice("/dashboard-assets/".length);
+  if (!relativePath || relativePath.includes("..")) return json(response, 404, { error: "not_found" }, requestId);
+  let body;
+  try {
+    body = await readFile(new URL(relativePath, DASHBOARD_ROOT));
+  } catch (error) {
+    if (error.code === "ENOENT") return json(response, 404, { error: "not_found" }, requestId);
+    throw error;
+  }
+  const extension = relativePath.slice(relativePath.lastIndexOf("."));
+  response.writeHead(200, {
+    "Content-Type": CONTENT_TYPES[extension] ?? "application/octet-stream",
+    "Cache-Control": relativePath === "index.html" ? "no-store" : "public, max-age=31536000, immutable",
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-Request-Id": requestId
+  });
+  response.end(body);
 }
 
 function validVideoId(value) {
@@ -36,12 +72,12 @@ function normalizeInput(body) {
   };
 }
 
-async function readJson(request) {
+async function readJson(request, maxBytes = MAX_BODY_BYTES) {
   let size = 0;
   const chunks = [];
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) throw Object.assign(new Error("request body too large"), { status: 413 });
+    if (size > maxBytes) throw Object.assign(new Error("request body too large"), { status: 413 });
     chunks.push(chunk);
   }
   try {
@@ -61,15 +97,56 @@ export function createHandler(options = {}) {
   const limit = Number(options.rateLimit ?? process.env.RATE_LIMIT_PER_MINUTE ?? 120);
   const approvedIds = approvedVideoIds(options.approvedVideoIds ?? process.env.APPROVED_YOUTUBE_VIDEO_IDS);
   const cache = options.cache ?? new TtlLruCache({ maxEntries: cacheMaxEntries });
+  const classroom = options.classroomStore ?? new ClassroomStore({
+    offlineAfterMs: Number(options.offlineAfterMs ?? process.env.DEVICE_OFFLINE_AFTER_SECONDS ?? 75) * 1000,
+    maxDevices: Number(options.maxDevices ?? process.env.DASHBOARD_MAX_DEVICES ?? 500)
+  });
   const inFlight = new Map();
   const rate = new Map();
 
   return async function handler(request, response) {
     const requestId = crypto.randomUUID();
-    if (request.method === "GET" && request.url === "/healthz") {
+    const url = new URL(request.url, "http://study-shield.local");
+    const pathname = url.pathname;
+    if (request.method === "GET" && pathname === "/healthz") {
       return json(response, 200, { ok: true }, requestId);
     }
-    if (request.method !== "POST" || request.url !== "/v1/classify/youtube") {
+    if (request.method === "GET" && (pathname === "/dashboard" || pathname === "/dashboard/" || pathname.startsWith("/dashboard-assets/"))) {
+      return serveDashboardAsset(response, pathname, requestId);
+    }
+    if (request.method === "GET" && pathname === "/v1/dashboard/snapshot") {
+      return json(response, 200, classroom.snapshot(), requestId);
+    }
+    if (request.method === "GET" && pathname.startsWith("/v1/dashboard/screenshot/")) {
+      const deviceId = decodeURIComponent(pathname.slice("/v1/dashboard/screenshot/".length));
+      const screenshot = classroom.getScreenshot(deviceId);
+      return screenshot
+        ? json(response, 200, screenshot, requestId)
+        : json(response, 404, { error: "screenshot_not_found" }, requestId);
+    }
+    if (request.method === "POST" && pathname === "/v1/telemetry/heartbeat") {
+      if (token && request.headers.authorization !== `Bearer ${token}`) {
+        return json(response, 401, { error: "unauthorized" }, requestId);
+      }
+      try {
+        return json(response, 200, { ok: true, device: classroom.report(await readJson(request)) }, requestId);
+      } catch (error) {
+        return json(response, error.status ?? 500, { error: error.status ? error.message : "telemetry_unavailable" }, requestId);
+      }
+    }
+    if (request.method === "POST" && pathname === "/v1/telemetry/screenshot") {
+      if (token && request.headers.authorization !== `Bearer ${token}`) {
+        return json(response, 401, { error: "unauthorized" }, requestId);
+      }
+      try {
+        const body = await readJson(request, 1_600_000);
+        classroom.saveScreenshot(body.deviceId, body.dataUrl, body.capturedAt);
+        return json(response, 200, { ok: true }, requestId);
+      } catch (error) {
+        return json(response, error.status ?? 500, { error: error.status ? error.message : "screenshot_unavailable" }, requestId);
+      }
+    }
+    if (request.method !== "POST" || pathname !== "/v1/classify/youtube") {
       return json(response, 404, { error: "not_found" }, requestId);
     }
     if (token && request.headers.authorization !== `Bearer ${token}`) {

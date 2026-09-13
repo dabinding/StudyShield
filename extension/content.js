@@ -161,6 +161,13 @@
       state = "blocked";
       pauseAll();
       showOverlay("All YouTube Shorts are blocked by school policy.");
+      chrome.runtime.sendMessage({
+        type: "REPORT_POLICY_EVENT",
+        event: {
+          blocked: true, violation: true, category: "youtube_short", gameDetected: false,
+          reason: "All YouTube Shorts are blocked by school policy."
+        }
+      }).catch(() => {});
       console.info("[Study Shield] YouTube Short blocked without classification", {
         url: location.href,
         videoId

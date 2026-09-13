@@ -1,16 +1,26 @@
 {
   "name": "study-shield-mvp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Study Shield YouTube classification MVP",
   "scripts": {
+    "build": "npm run build:dashboard",
+    "build:dashboard": "vite build --config dashboard/vite.config.js",
     "start": "node --env-file=.env backend/src/server.js",
     "test": "node --test backend/test/*.test.js",
     "test:videos": "node --env-file=.env --test backend/eval/youtube.test.js",
-    "check": "node --check backend/src/server.js && node --check backend/src/classifier.js && node --check backend/src/cache.js && node --check extension/background.js && node --check extension/content.js"
+    "check": "node --check backend/src/server.js && node --check backend/src/classifier.js && node --check backend/src/cache.js && node --check backend/src/classroom-store.js && node --check extension/background.js && node --check extension/content.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "element-plus": "^2.14.5",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vite": "^7.3.6"
   }
 }

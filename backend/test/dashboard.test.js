@@ -1,0 +1,49 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { Readable } from "node:stream";
+import { createHandler } from "../src/app.js";
+
+async function request(handler, { method = "GET", url, body, token = "" }) {
+  const input = body === undefined ? [] : [Buffer.from(JSON.stringify(body))];
+  const incoming = Readable.from(input);
+  incoming.method = method;
+  incoming.url = url;
+  incoming.headers = token ? { authorization: `Bearer ${token}` } : {};
+  incoming.socket = { remoteAddress: "127.0.0.1" };
+  const result = {};
+  const response = {
+    writeHead(status, headers) { result.status = status; result.headers = headers; },
+    end(data) { result.body = data ? JSON.parse(data.toString()) : null; }
+  };
+  await handler(incoming, response);
+  return result;
+}
+
+test("telemetry heartbeat appears in the open teacher dashboard snapshot", async () => {
+  const handler = createHandler({ token: "device-token" });
+  const heartbeat = await request(handler, {
+    method: "POST", url: "/v1/telemetry/heartbeat", token: "device-token",
+    body: {
+      deviceId: "device-test-01", studentName: "Taylor", deviceLabel: "Chromebook 3",
+      idleState: "active", blocked: false,
+      activity: { title: "Geometry lesson", url: "https://youtube.com/watch?v=test", domain: "youtube.com", category: "educational" },
+      network: { online: true, effectiveType: "4g" },
+      deviceHealth: { status: "healthy", platform: "cros", extensionVersion: "0.2.0" }
+    }
+  });
+  assert.equal(heartbeat.status, 200);
+
+  const snapshot = await request(handler, { url: "/v1/dashboard/snapshot" });
+  assert.equal(snapshot.status, 200);
+  assert.equal(snapshot.body.summary.online, 1);
+  assert.equal(snapshot.body.devices[0].studentName, "Taylor");
+  assert.equal(snapshot.body.devices[0].activity.category, "educational");
+});
+
+test("telemetry writes still require the extension API token", async () => {
+  const handler = createHandler({ token: "device-token" });
+  const response = await request(handler, {
+    method: "POST", url: "/v1/telemetry/heartbeat", body: { deviceId: "device-test-02" }
+  });
+  assert.equal(response.status, 401);
+});

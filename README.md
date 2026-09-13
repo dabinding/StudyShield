@@ -1,4 +1,6 @@
-# Study Shield YouTube MVP
+# Study Shield MVP
+
+Study Shield combines a ChromeOS-focused YouTube filter with a near-real-time Vue 3 and Element Plus classroom dashboard served by the Node.js backend.
 
 ## Classification pipeline (v3)
 
@@ -28,6 +30,15 @@ export STUDY_SHIELD_API_TOKEN="your-long-random-token"
 npm start
 ```
 
+Open `http://localhost:8787/dashboard` for the teacher dashboard. The extension reports a heartbeat immediately and approximately every 30 seconds; the dashboard refreshes every three seconds and marks a device offline after 75 seconds without a successful heartbeat.
+
+The compiled dashboard is committed for simple Node deployment. After changing files under `dashboard/`, rebuild it with:
+
+```bash
+npm install
+npm run build
+```
+
 For UI testing without an API key, run the intentionally limited keyword classifier:
 
 ```bash
@@ -35,6 +46,25 @@ CLASSIFIER_MODE=heuristic npm start
 ```
 
 Load `study-shield/extension` as an unpacked extension from `chrome://extensions`, open its settings, and configure the backend URL and matching API token. Visit a YouTube video to test it.
+
+The extension settings also accept a student display name and device label. Screen previews are disabled by default. If explicitly enabled, the extension captures only the currently visible tab as a compressed JPEG no more than once per configured interval (minimum 60 seconds). This is periodic capture, not continuous screen streaming.
+
+## Classroom dashboard
+
+The dashboard reports the strongest signals available to this MVP extension:
+
+- online/offline and last heartbeat
+- active-tab title, URL, and domain
+- current content category and AI classification state
+- active/idle/locked state through `chrome.idle`
+- blocked state, game detection, and policy-violation count
+- browser network reachability and reported connection type when available
+- ChromeOS/platform, extension version, and physical-memory capacity when available
+- optional recent visible-tab preview with its capture time
+
+Dashboard telemetry and previews are held in backend memory and clear on restart. Continuous screen streaming is not implemented. Chrome does not provide unrestricted remote-desktop streaming through a normal extension; managed products needing that capability require a separate supervised screen-sharing architecture and explicit district policy.
+
+Teacher authentication is intentionally omitted from this development version. The dashboard displays a warning and must remain on a trusted test network. Telemetry writes still require `STUDY_SHIELD_API_TOKEN`. Add teacher identity, role-based access, TLS, audit logs, retention controls, and consent/notice before any real deployment.
 
 ## API
 
@@ -55,6 +85,7 @@ The response includes `allowed`, `category`, `confidence`, `reason`, `videoId`, 
 
 - Host the backend behind HTTPS. Never ship the OpenAI key in the extension.
 - Replace the shared bearer token with device/user authentication before a district-wide rollout. A shared extension secret can be extracted by a determined user and is only an MVP control.
+- Require authenticated teacher accounts and classroom/roster authorization before exposing dashboard data.
 - Store classification decisions in Redis or a database; the included cache is per-process and in memory.
 - Restrict backend ingress, add centralized rate limiting, structured logs, monitoring, and alerting.
 - Configure `apiBaseUrl`, `apiToken`, `failMode`, and `timeoutMs` through Chrome Enterprise managed extension policy using `policy-schema.json`.
@@ -68,7 +99,7 @@ The response includes `allowed`, `category`, `confidence`, `reason`, `videoId`, 
 - Classification uses creator-supplied metadata and can be wrong or deliberately misleading.
 - A denied video can play briefly while classification is in progress, so this mode prioritizes a smooth experience over pre-playback enforcement.
 - The development options page is not an administrative security boundary. Production values should come from managed policy.
-- The MVP override is a backend environment setting rather than a teacher-facing workflow. It has no roster, audit database, or admin dashboard yet.
+- The MVP override is a backend environment setting rather than a teacher-facing workflow. The dashboard has no roster integration, durable audit database, or teacher authentication yet.
 
 ## Tests
 

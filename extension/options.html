@@ -8,6 +8,9 @@
       body { max-width: 680px; margin: 48px auto; padding: 0 24px; font: 15px/1.5 system-ui; color: #172033; }
       label { display: block; margin: 18px 0 6px; font-weight: 650; }
       input, select { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 8px; }
+      .checkbox { display: flex; align-items: center; gap: 9px; }
+      .checkbox input { width: auto; }
+      .note { margin: -10px 0 0; color: #64748b; font-size: 13px; }
       button { margin-top: 24px; padding: 10px 18px; border: 0; border-radius: 8px; background: #2563eb; color: white; font-weight: 700; }
       #status { margin-left: 12px; color: #15803d; }
     </style>
@@ -20,8 +23,16 @@
       <input id="apiBaseUrl" type="url" required>
       <label for="apiToken">API token</label>
       <input id="apiToken" type="password" autocomplete="off">
+      <label for="studentName">Student display name</label>
+      <input id="studentName" type="text" maxlength="120" placeholder="e.g. Jordan Lee">
+      <label for="deviceLabel">Device label</label>
+      <input id="deviceLabel" type="text" maxlength="120" placeholder="e.g. Chromebook 14">
       <label for="failMode">When the classifier is unavailable</label>
       <select id="failMode"><option value="closed">Block playback</option><option value="open">Allow playback</option></select>
+      <label class="checkbox"><input id="screenshotEnabled" type="checkbox"> Enable periodic visible-tab screen previews</label>
+      <p class="note">Disabled by default. When enabled, the extension captures the active tab no more than once per configured interval.</p>
+      <label for="screenshotIntervalSeconds">Screen preview interval (seconds)</label>
+      <input id="screenshotIntervalSeconds" type="number" min="60" max="3600" step="30">
       <button type="submit">Save</button><span id="status" role="status"></span>
     </form>
     <script src="options.js"></script>
