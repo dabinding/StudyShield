@@ -70,3 +70,27 @@ test("website rule API evaluates policy before the classifier", async () => {
   assert.equal(decision.body.allowed, false);
   assert.equal(decision.body.source, "policy");
 });
+
+test("website rules can be listed and edited for the policy dashboard", async () => {
+  const repository = new InMemoryWebsitePolicyRepository({ rules: [] });
+  const websitePolicyService = new WebsitePolicyService({ repository, classifier: async () => ({ category: "uncertain", confidence: 0, reason: "unused" }) });
+  const handler = createHandler({ token: "teacher-token", websitePolicyService });
+  const created = await request(handler, {
+    method: "POST", url: "/v1/policies/website/rules", token: "teacher-token",
+    body: { scopeType: "global", scopeId: "global", action: "blacklist", matchType: "suffix", pattern: "games.example.org" }
+  });
+  assert.equal(created.status, 201);
+
+  const listed = await request(handler, { url: "/v1/policies/website/rules" });
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.rules.length, 1);
+  assert.equal(listed.body.rules[0].pattern, "games.example.org");
+
+  const updated = await request(handler, {
+    method: "PUT", url: `/v1/policies/website/rules/${created.body.rule.id}`, token: "teacher-token",
+    body: { ...created.body.rule, action: "whitelist", active: false }
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.rule.action, "whitelist");
+  assert.equal(updated.body.rule.active, false);
+});

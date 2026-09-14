@@ -114,6 +114,18 @@ export class WebsitePolicyService {
     return saved;
   }
 
+  async listRules() {
+    return this.repository.listRules();
+  }
+
+  async updateRule(id, input) {
+    const rule = normalizeWebsiteRule(input);
+    const saved = await this.repository.updateRule(id, rule);
+    if (!saved) throw Object.assign(new Error("website rule was not found"), { status: 404 });
+    this.cache.clear();
+    return saved;
+  }
+
   ruleDecision(domain, rule, allowed) {
     return {
       allowed, domain, category: allowed ? "educational" : "non_educational", confidence: 1,

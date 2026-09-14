@@ -18,6 +18,10 @@ export class InMemoryWebsitePolicyRepository {
     return this.rules.filter(rule => scopes.some(scope => rule.scopeType === scope.type && scope.ids.includes(rule.scopeId) && rule.active !== false));
   }
 
+  async listRules() {
+    return [...this.rules].sort((a, b) => `${a.scopeType}:${a.scopeId}:${a.pattern}`.localeCompare(`${b.scopeType}:${b.scopeId}:${b.pattern}`));
+  }
+
   async getClassification(domain, now) {
     const value = this.classifications.get(domain);
     return value?.expiresAt > now ? value : null;
@@ -32,6 +36,14 @@ export class InMemoryWebsitePolicyRepository {
     const saved = { id: existing >= 0 ? this.rules[existing].id : crypto.randomUUID(), ...rule };
     if (existing >= 0) this.rules.splice(existing, 1, saved);
     else this.rules.push(saved);
+    return saved;
+  }
+
+  async updateRule(id, rule) {
+    const index = this.rules.findIndex(item => item.id === id);
+    if (index < 0) return null;
+    const saved = { id, ...rule };
+    this.rules.splice(index, 1, saved);
     return saved;
   }
 }
@@ -53,6 +65,15 @@ export class PostgresWebsitePolicyRepository {
     const { rows } = await this.pool.query(
       `SELECT id, scope_type AS "scopeType", scope_id AS "scopeId", action, pattern, match_type AS "matchType"
        FROM website_rules WHERE active = true AND (${clauses.join(" OR ")})`, values
+    );
+    return rows;
+  }
+
+  async listRules() {
+    const { rows } = await this.pool.query(
+      `SELECT id, scope_type AS "scopeType", scope_id AS "scopeId", action, match_type AS "matchType", pattern, active
+       FROM website_rules
+       ORDER BY scope_type, scope_id, action, pattern`
     );
     return rows;
   }
@@ -87,6 +108,17 @@ export class PostgresWebsitePolicyRepository {
       [rule.scopeType, rule.scopeId, rule.action, rule.matchType, rule.pattern, rule.active]
     );
     return rows[0];
+  }
+
+  async updateRule(id, rule) {
+    const { rows } = await this.pool.query(
+      `UPDATE website_rules
+       SET scope_type = $2, scope_id = $3, action = $4, match_type = $5, pattern = $6, active = $7, updated_at = now()
+       WHERE id = $1
+       RETURNING id, scope_type AS "scopeType", scope_id AS "scopeId", action, match_type AS "matchType", pattern, active`,
+      [id, rule.scopeType, rule.scopeId, rule.action, rule.matchType, rule.pattern, rule.active]
+    );
+    return rows[0] ?? null;
   }
 
   async close() { await this.pool.end(); }

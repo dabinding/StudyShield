@@ -30,9 +30,9 @@ const CONTENT_TYPES = {
 };
 
 async function serveDashboardAsset(response, pathname, requestId) {
-  const relativePath = pathname === "/dashboard" || pathname === "/dashboard/"
-    ? "index.html"
-    : pathname.slice("/dashboard-assets/".length);
+  const relativePath = pathname.startsWith("/dashboard-assets/")
+    ? pathname.slice("/dashboard-assets/".length)
+    : "index.html";
   if (!relativePath || relativePath.includes("..")) return json(response, 404, { error: "not_found" }, requestId);
   let body;
   try {
@@ -134,7 +134,7 @@ export function createHandler(options = {}) {
     if (request.method === "GET" && pathname === "/healthz") {
       return json(response, 200, { ok: true }, requestId);
     }
-    if (request.method === "GET" && (pathname === "/dashboard" || pathname === "/dashboard/" || pathname.startsWith("/dashboard-assets/"))) {
+    if (request.method === "GET" && (pathname === "/dashboard" || pathname.startsWith("/dashboard/") || pathname.startsWith("/dashboard-assets/"))) {
       return serveDashboardAsset(response, pathname, requestId);
     }
     if (request.method === "GET" && pathname === "/v1/dashboard/snapshot") {
@@ -193,6 +193,27 @@ export function createHandler(options = {}) {
         const rule = await websitePolicy.saveRule(await readJson(request));
         console.info(JSON.stringify({ event: "website_rule_saved", requestId, rule }));
         return json(response, 201, { rule }, requestId);
+      } catch (error) {
+        return json(response, error.status ?? 500, { error: error.status ? error.message : "website_rule_unavailable" }, requestId);
+      }
+    }
+    if (request.method === "GET" && pathname === "/v1/policies/website/rules") {
+      try {
+        return json(response, 200, { rules: await websitePolicy.listRules() }, requestId);
+      } catch (error) {
+        return json(response, 500, { error: "website_rules_unavailable" }, requestId);
+      }
+    }
+    if (request.method === "PUT" && pathname.startsWith("/v1/policies/website/rules/")) {
+      if (token && request.headers.authorization !== `Bearer ${token}`) {
+        return json(response, 401, { error: "unauthorized" }, requestId);
+      }
+      try {
+        const id = decodeURIComponent(pathname.slice("/v1/policies/website/rules/".length));
+        if (!id) throw Object.assign(new Error("website rule id is required"), { status: 400 });
+        const rule = await websitePolicy.updateRule(id, await readJson(request));
+        console.info(JSON.stringify({ event: "website_rule_updated", requestId, rule }));
+        return json(response, 200, { rule }, requestId);
       } catch (error) {
         return json(response, error.status ?? 500, { error: error.status ? error.message : "website_rule_unavailable" }, requestId);
       }

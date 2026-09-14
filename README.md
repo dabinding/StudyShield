@@ -20,7 +20,40 @@ The console logs the resolved title, metadata source, category, reason, and cach
 
 Website rules use PostgreSQL in production. SQLite is intentionally not used: it is excellent for a single-device prototype but cannot safely serve a multi-state, one-million-student policy service. PostgreSQL gives this model transactional rule updates, strong tenant isolation, indexed scope lookups, and read-replica/partitioning options. The service uses a bounded process cache in front of the durable classification table; for multi-region production, add Redis as the shared cache in front of PostgreSQL.
 
-Apply the SQL files in [backend/db/migrations](backend/db/migrations) to the PostgreSQL database in filename order, then set `POLICY_DATABASE_URL`. Without that setting, the Node development server uses an in-memory repository and custom rules disappear when it restarts.
+### Local PostgreSQL setup (macOS)
+
+Install and start PostgreSQL 17 with Homebrew:
+
+```bash
+brew install postgresql@17
+brew services start postgresql@17
+export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+```
+
+If Homebrew says the post-install step did not complete, run `brew postinstall postgresql@17` once before starting the service.
+
+Create the database and apply every migration in filename order:
+
+```bash
+createdb study_shield
+for migration_file in backend/db/migrations/*.sql; do
+  psql -v ON_ERROR_STOP=1 -d study_shield -f "$migration_file"
+done
+```
+
+Set the connection string in `.env`, then restart the backend:
+
+```dotenv
+POLICY_DATABASE_URL=postgresql://localhost:5432/study_shield
+```
+
+Confirm the database and seeded global rules are available:
+
+```bash
+psql -d study_shield -c "SELECT scope_type, action, match_type, pattern, active FROM website_rules ORDER BY pattern;"
+```
+
+On Intel Macs, Homebrew may install under `/usr/local`; use `brew --prefix postgresql@17` to find the matching `bin` directory. Without `POLICY_DATABASE_URL`, the Node development server uses an in-memory repository and custom rules disappear when it restarts.
 
 Rules are evaluated in this hierarchy: Global → State → District → School → Class → Teacher → Student. A matching blacklist always blocks, regardless of a lower-level whitelist. If no blacklist matches, the most-specific matching whitelist allows. Any unruled HTTP/S domain is classified with the configured AI model and cached by normalized domain for `WEBSITE_CACHE_TTL_SECONDS` (seven days by default).
 
@@ -53,7 +86,7 @@ export STUDY_SHIELD_API_TOKEN="your-long-random-token"
 npm start
 ```
 
-Open `http://localhost:8787/dashboard` for the teacher dashboard. The extension reports a heartbeat immediately and approximately every 30 seconds; the dashboard refreshes every three seconds and marks a device offline after 75 seconds without a successful heartbeat.
+Open `http://localhost:8787/dashboard` for the dashboard landing page. Website rules are managed at `/dashboard/policies`, and classroom activity is at `/dashboard/classroom`. The extension reports a heartbeat immediately and approximately every 30 seconds; the classroom page refreshes every three seconds and marks a device offline after 75 seconds without a successful heartbeat.
 
 The compiled dashboard is committed for simple Node deployment. After changing files under `dashboard/`, rebuild it with:
 
@@ -88,6 +121,10 @@ The dashboard reports the strongest signals available to this MVP extension:
 Dashboard telemetry and previews are held in backend memory and clear on restart. Continuous screen streaming is not implemented. Chrome does not provide unrestricted remote-desktop streaming through a normal extension; managed products needing that capability require a separate supervised screen-sharing architecture and explicit district policy.
 
 Teacher authentication is intentionally omitted from this development version. The dashboard displays a warning and must remain on a trusted test network. Telemetry writes still require `STUDY_SHIELD_API_TOKEN`. Add teacher identity, role-based access, TLS, audit logs, retention controls, and consent/notice before any real deployment.
+
+## Website policy dashboard
+
+The website-policy page lists active and inactive whitelist and blacklist rules, supports searching and filtering, and can create or edit rules at the Global, State, District, School, Class, Teacher, or Student level. If `STUDY_SHIELD_API_TOKEN` is configured, enter it on the page before saving; it is kept in `sessionStorage` and clears when the browser session ends.
 
 ## API
 
