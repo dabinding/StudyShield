@@ -1,6 +1,6 @@
 {
   "name": "study-shield-mvp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "Study Shield YouTube classification MVP",
