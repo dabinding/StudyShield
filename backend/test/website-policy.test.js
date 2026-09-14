@@ -33,6 +33,24 @@ test("most-specific whitelist allows a matching website", async () => {
   assert.equal(decision.matchedRule.id, "teacher-allow");
 });
 
+test("popular search engines are globally whitelisted by default", async () => {
+  const repository = new InMemoryWebsitePolicyRepository();
+  const service = new WebsitePolicyService({ repository, classifier: async () => assert.fail("global policy should decide") });
+  const examples = [
+    ["https://www.google.com/search?q=geometry", "google.com", "global-search-google"],
+    ["https://www.bing.com/search?q=geometry", "bing.com", "global-search-bing"],
+    ["https://duckduckgo.com/?q=geometry", "duckduckgo.com", "global-search-duckduckgo"]
+  ];
+
+  for (const [url, domain, ruleId] of examples) {
+    const decision = await service.decide({ url, title: "Search", description: "" }, context);
+    assert.equal(decision.allowed, true);
+    assert.equal(decision.domain, domain);
+    assert.equal(decision.source, "policy");
+    assert.equal(decision.matchedRule.id, ruleId);
+  }
+});
+
 test("unruled websites are classified once and served from cache", async () => {
   let calls = 0;
   const repository = new InMemoryWebsitePolicyRepository();

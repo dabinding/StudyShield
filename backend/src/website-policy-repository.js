@@ -1,7 +1,15 @@
 import pg from "pg";
 
+export const DEFAULT_GLOBAL_WEBSITE_RULES = [
+  { id: "global-search-google", scopeType: "global", scopeId: "global", action: "whitelist", matchType: "exact", pattern: "google.com", active: true },
+  { id: "global-search-bing", scopeType: "global", scopeId: "global", action: "whitelist", matchType: "exact", pattern: "bing.com", active: true },
+  { id: "global-search-duckduckgo", scopeType: "global", scopeId: "global", action: "whitelist", matchType: "exact", pattern: "duckduckgo.com", active: true }
+];
+
 export class InMemoryWebsitePolicyRepository {
-  constructor({ rules = [], classifications = [] } = {}) {
+  constructor(options = {}) {
+    const rules = options.rules ?? DEFAULT_GLOBAL_WEBSITE_RULES;
+    const classifications = options.classifications ?? [];
     this.rules = [...rules];
     this.classifications = new Map(classifications.map(value => [value.domain, value]));
   }

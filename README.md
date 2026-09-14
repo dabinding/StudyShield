@@ -20,9 +20,11 @@ The console logs the resolved title, metadata source, category, reason, and cach
 
 Website rules use PostgreSQL in production. SQLite is intentionally not used: it is excellent for a single-device prototype but cannot safely serve a multi-state, one-million-student policy service. PostgreSQL gives this model transactional rule updates, strong tenant isolation, indexed scope lookups, and read-replica/partitioning options. The service uses a bounded process cache in front of the durable classification table; for multi-region production, add Redis as the shared cache in front of PostgreSQL.
 
-Apply [the website-policy migration](backend/db/migrations/001_website_policy.sql) to the PostgreSQL database, then set `POLICY_DATABASE_URL`. Without that setting, the Node development server uses an in-memory repository and rules disappear when it restarts.
+Apply the SQL files in [backend/db/migrations](backend/db/migrations) to the PostgreSQL database in filename order, then set `POLICY_DATABASE_URL`. Without that setting, the Node development server uses an in-memory repository and custom rules disappear when it restarts.
 
 Rules are evaluated in this hierarchy: Global → State → District → School → Class → Teacher → Student. A matching blacklist always blocks, regardless of a lower-level whitelist. If no blacklist matches, the most-specific matching whitelist allows. Any unruled HTTP/S domain is classified with the configured AI model and cached by normalized domain for `WEBSITE_CACHE_TTL_SECONDS` (seven days by default).
+
+Google Search (`google.com`), Bing (`bing.com`), and DuckDuckGo (`duckduckgo.com`) are included as exact-domain global whitelist rules. Exact matching permits their main search domains without automatically allowing unrelated subdomains or services.
 
 The extension receives scope identifiers through Chrome Enterprise managed storage as `policyContext`. In production, do not trust a client-supplied context: derive the student/device and its roster memberships from the server-side device identity instead.
 
