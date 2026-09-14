@@ -1,6 +1,7 @@
 const DEFAULT_CONFIG = {
   apiBaseUrl: "http://localhost:8787", apiToken: "", failMode: "closed", timeoutMs: 25000,
-  studentName: "", deviceLabel: "", screenshotEnabled: false, screenshotIntervalSeconds: 60
+  studentName: "", deviceLabel: "", screenshotEnabled: false, screenshotIntervalSeconds: 60,
+  policyContext: {}
 };
 const HEARTBEAT_ALARM = "study-shield-heartbeat";
 const GAME_TERMS = ["minecraft", "roblox", "fortnite", "call of duty", "gameplay", "gaming", "speedrun", "let's play"];
@@ -32,6 +33,10 @@ function apiHeaders(config) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "CLASSIFY_YOUTUBE_VIDEO") {
     classify(message.video, sender.tab).then(sendResponse);
+    return true;
+  }
+  if (message?.type === "CLASSIFY_WEBSITE") {
+    classifyWebsite(message.site, sender.tab).then(sendResponse);
     return true;
   }
   if (message?.type === "REPORT_POLICY_EVENT") {
@@ -71,6 +76,54 @@ async function classify(video, tab) {
   }
 
   const decisionText = `${result.decision?.title ?? ""} ${result.decision?.reason ?? ""}`.toLowerCase();
+  latestDecision = {
+    tabId: tab?.id, url: tab?.url, state: result.ok ? "complete" : "unavailable",
+    category: result.decision?.category, confidence: result.decision?.confidence,
+    cached: result.decision?.cached, reason: result.decision?.reason,
+    blocked: !result.decision?.allowed,
+    gameDetected: GAME_TERMS.some(term => decisionText.includes(term)), checkedAt: Date.now()
+  };
+  if (latestDecision.blocked) {
+    latestPolicyEvent = {
+      eventId: crypto.randomUUID(), violation: true, at: Date.now(),
+      reason: latestDecision.reason, category: latestDecision.category
+    };
+  }
+  scheduleHeartbeat(0);
+  return result;
+}
+
+async function classifyWebsite(site, tab) {
+  const config = await getConfig();
+  try {
+    if (new URL(site.url).origin === new URL(config.apiBaseUrl).origin) {
+      return { ok: true, decision: { allowed: true, category: "school_resource", confidence: 1, reason: "Study Shield service page." } };
+    }
+  } catch { /* The API validates the page URL. */ }
+
+  latestDecision = { tabId: tab?.id, url: tab?.url, state: "checking", checkedAt: Date.now() };
+  scheduleHeartbeat(0);
+  let result;
+  try {
+    const response = await fetch(`${config.apiBaseUrl.replace(/\/$/, "")}/v1/classify/website`, {
+      method: "POST", headers: apiHeaders(config),
+      body: JSON.stringify({ ...site, scopeContext: config.policyContext ?? {} })
+    });
+    if (!response.ok) throw new Error(`Study Shield website API returned ${response.status}`);
+    result = { ok: true, decision: await response.json() };
+  } catch (error) {
+    result = {
+      ok: false,
+      decision: {
+        allowed: config.failMode === "open", category: "unavailable", confidence: 0,
+        reason: config.failMode === "open"
+          ? "Website checking is temporarily unavailable."
+          : "Website checking is temporarily unavailable."
+      },
+      error: error.message
+    };
+  }
+  const decisionText = `${site.title ?? ""} ${site.domain ?? ""} ${result.decision?.reason ?? ""}`.toLowerCase();
   latestDecision = {
     tabId: tab?.id, url: tab?.url, state: result.ok ? "complete" : "unavailable",
     category: result.decision?.category, confidence: result.decision?.confidence,

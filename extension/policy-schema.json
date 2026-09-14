@@ -8,6 +8,13 @@
     "studentName": { "title": "Student display name", "type": "string" },
     "deviceLabel": { "title": "Device label", "type": "string" },
     "screenshotEnabled": { "title": "Enable periodic visible-tab previews", "type": "boolean" },
-    "screenshotIntervalSeconds": { "title": "Screen preview interval in seconds", "type": "integer", "minimum": 60, "maximum": 3600 }
+    "screenshotIntervalSeconds": { "title": "Screen preview interval in seconds", "type": "integer", "minimum": 60, "maximum": 3600 },
+    "policyContext": {
+      "title": "Website policy scope context", "type": "object",
+      "properties": {
+        "state": { "type": "string" }, "district": { "type": "string" }, "school": { "type": "string" },
+        "classIds": { "type": "array", "items": { "type": "string" } }, "teacher": { "type": "string" }, "student": { "type": "string" }
+      }
+    }
   }
 }

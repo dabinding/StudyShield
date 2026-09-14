@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { createHandler } from "../src/app.js";
+import { WebsitePolicyService } from "../src/website-policy.js";
+import { InMemoryWebsitePolicyRepository } from "../src/website-policy-repository.js";
 
 async function request(handler, { method = "GET", url, body, token = "" }) {
   const input = body === undefined ? [] : [Buffer.from(JSON.stringify(body))];
@@ -46,4 +48,25 @@ test("telemetry writes still require the extension API token", async () => {
     method: "POST", url: "/v1/telemetry/heartbeat", body: { deviceId: "device-test-02" }
   });
   assert.equal(response.status, 401);
+});
+
+test("website rule API evaluates policy before the classifier", async () => {
+  const websitePolicyService = new WebsitePolicyService({
+    repository: new InMemoryWebsitePolicyRepository(),
+    classifier: async () => assert.fail("matching policy should decide")
+  });
+  const handler = createHandler({ token: "device-token", websitePolicyService });
+  const rule = await request(handler, {
+    method: "POST", url: "/v1/policies/website/rules", token: "device-token",
+    body: { scopeType: "school", scopeId: "school-1", action: "blacklist", pattern: "games.example.org" }
+  });
+  assert.equal(rule.status, 201);
+
+  const decision = await request(handler, {
+    method: "POST", url: "/v1/classify/website", token: "device-token",
+    body: { url: "https://games.example.org/play", title: "Game", scopeContext: { school: "school-1" } }
+  });
+  assert.equal(decision.status, 200);
+  assert.equal(decision.body.allowed, false);
+  assert.equal(decision.body.source, "policy");
 });

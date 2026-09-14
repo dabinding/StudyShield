@@ -16,6 +16,27 @@ APPROVED_YOUTUBE_VIDEO_IDS=HtxOsOuY7hA,anotherVideoId
 
 The console logs the resolved title, metadata source, category, reason, and cache status. API failures still follow the configured failure policy, with a separate “Video check unavailable” heading. Playback proceeds silently while checking, and approval does not restart a video you manually paused.
 
+## Website policy and filtering
+
+Website rules use PostgreSQL in production. SQLite is intentionally not used: it is excellent for a single-device prototype but cannot safely serve a multi-state, one-million-student policy service. PostgreSQL gives this model transactional rule updates, strong tenant isolation, indexed scope lookups, and read-replica/partitioning options. The service uses a bounded process cache in front of the durable classification table; for multi-region production, add Redis as the shared cache in front of PostgreSQL.
+
+Apply [the website-policy migration](backend/db/migrations/001_website_policy.sql) to the PostgreSQL database, then set `POLICY_DATABASE_URL`. Without that setting, the Node development server uses an in-memory repository and rules disappear when it restarts.
+
+Rules are evaluated in this hierarchy: Global → State → District → School → Class → Teacher → Student. A matching blacklist always blocks, regardless of a lower-level whitelist. If no blacklist matches, the most-specific matching whitelist allows. Any unruled HTTP/S domain is classified with the configured AI model and cached by normalized domain for `WEBSITE_CACHE_TTL_SECONDS` (seven days by default).
+
+The extension receives scope identifiers through Chrome Enterprise managed storage as `policyContext`. In production, do not trust a client-supplied context: derive the student/device and its roster memberships from the server-side device identity instead.
+
+For local API testing, create a rule with the configured API token:
+
+```bash
+curl -X POST http://localhost:8787/v1/policies/website/rules \
+  -H "Authorization: Bearer $STUDY_SHIELD_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"scopeType":"school","scopeId":"school-123","action":"blacklist","matchType":"suffix","pattern":"games.example.org"}'
+```
+
+Use `scopeId: "global"` for global rules. The website endpoint accepts page title and meta description from the extension, but the backend does not fetch arbitrary submitted URLs.
+
 Study Shield lets a regular YouTube video begin while it sends the video ID to a backend classifier. Approved videos continue without interruption; denied videos are paused and covered by a block message. All `/shorts/` videos are blocked locally without an API call. Normal watch pages, live pages, embedded videos, and YouTube's single-page navigation are supported.
 
 ## Run locally

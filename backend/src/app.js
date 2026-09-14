@@ -4,6 +4,8 @@ import { isAllowed } from './policy.js';
 import { TtlLruCache } from "./cache.js";
 import { ClassroomStore } from "./classroom-store.js";
 import { readFile } from "node:fs/promises";
+import { WebsitePolicyService, normalizeDomain } from "./website-policy.js";
+import { createWebsitePolicyRepository } from "./website-policy-repository.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -72,6 +74,23 @@ function normalizeInput(body) {
   };
 }
 
+function normalizeWebsiteInput(body) {
+  const url = typeof body?.url === "string" ? body.url.trim().slice(0, 2048) : "";
+  let parsed;
+  try { parsed = new URL(url); } catch { throw Object.assign(new Error("website URL is invalid"), { status: 400 }); }
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw Object.assign(new Error("website URL must use HTTP or HTTPS"), { status: 400 });
+  }
+  const domain = normalizeDomain(parsed.hostname);
+  if (!domain) throw Object.assign(new Error("website domain is invalid"), { status: 400 });
+  return {
+    url: parsed.toString(), domain,
+    title: typeof body.title === "string" ? body.title.trim().slice(0, 500) : "",
+    description: typeof body.description === "string" ? body.description.trim().slice(0, 5000) : "",
+    scopeContext: body.scopeContext && typeof body.scopeContext === "object" ? body.scopeContext : {}
+  };
+}
+
 async function readJson(request, maxBytes = MAX_BODY_BYTES) {
   let size = 0;
   const chunks = [];
@@ -100,6 +119,10 @@ export function createHandler(options = {}) {
   const classroom = options.classroomStore ?? new ClassroomStore({
     offlineAfterMs: Number(options.offlineAfterMs ?? process.env.DEVICE_OFFLINE_AFTER_SECONDS ?? 75) * 1000,
     maxDevices: Number(options.maxDevices ?? process.env.DASHBOARD_MAX_DEVICES ?? 500)
+  });
+  const websitePolicy = options.websitePolicyService ?? new WebsitePolicyService({
+    repository: options.websitePolicyRepository ?? createWebsitePolicyRepository(),
+    cacheTtlMs: Number(process.env.WEBSITE_CACHE_TTL_SECONDS ?? 604800) * 1000
   });
   const inFlight = new Map();
   const rate = new Map();
@@ -144,6 +167,34 @@ export function createHandler(options = {}) {
         return json(response, 200, { ok: true }, requestId);
       } catch (error) {
         return json(response, error.status ?? 500, { error: error.status ? error.message : "screenshot_unavailable" }, requestId);
+      }
+    }
+    if (request.method === "POST" && pathname === "/v1/classify/website") {
+      if (token && request.headers.authorization !== `Bearer ${token}`) {
+        return json(response, 401, { error: "unauthorized" }, requestId);
+      }
+      try {
+        const site = normalizeWebsiteInput(await readJson(request));
+        const decision = await websitePolicy.decide(site, site.scopeContext);
+        console.info(JSON.stringify({ event: "website_classification", requestId, domain: site.domain, ...decision }));
+        return json(response, 200, decision, requestId);
+      } catch (error) {
+        const status = error.status ?? (error.message?.includes("required") ? 503 : 500);
+        const publicMessage = status < 500 ? error.message : "website_classification_unavailable";
+        console.error(JSON.stringify({ requestId, error: error.message }));
+        return json(response, status, { error: publicMessage }, requestId);
+      }
+    }
+    if (request.method === "POST" && pathname === "/v1/policies/website/rules") {
+      if (token && request.headers.authorization !== `Bearer ${token}`) {
+        return json(response, 401, { error: "unauthorized" }, requestId);
+      }
+      try {
+        const rule = await websitePolicy.saveRule(await readJson(request));
+        console.info(JSON.stringify({ event: "website_rule_saved", requestId, rule }));
+        return json(response, 201, { rule }, requestId);
+      } catch (error) {
+        return json(response, error.status ?? 500, { error: error.status ? error.message : "website_rule_unavailable" }, requestId);
       }
     }
     if (request.method !== "POST" || pathname !== "/v1/classify/youtube") {

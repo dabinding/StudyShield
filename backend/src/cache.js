@@ -30,6 +30,14 @@ export class TtlLruCache {
     }
   }
 
+  delete(key) {
+    this.entries.delete(key);
+  }
+
+  clear() {
+    this.entries.clear();
+  }
+
   get size() {
     return this.entries.size;
   }
