@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Study Shield",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Applies school website policies and checks YouTube videos for educational purpose.",
   "permissions": ["storage", "tabs", "idle", "alarms", "system.memory"],
   "host_permissions": ["<all_urls>"],

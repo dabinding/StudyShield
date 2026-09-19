@@ -11,11 +11,20 @@ let lastActivityAt = Date.now();
 let lastScreenshotAt = 0;
 let heartbeatTimer = null;
 
+function normalizeApiToken(value) {
+  const token = String(value ?? "").trim();
+  if (token.length >= 2 && ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'")))) {
+    return token.slice(1, -1);
+  }
+  return token;
+}
+
 async function getConfig() {
   const [managed, local] = await Promise.all([
     chrome.storage.managed.get(null).catch(() => ({})), chrome.storage.local.get(DEFAULT_CONFIG)
   ]);
-  return { ...DEFAULT_CONFIG, ...local, ...managed };
+  const config = { ...DEFAULT_CONFIG, ...local, ...managed };
+  return { ...config, apiToken: normalizeApiToken(config.apiToken) };
 }
 
 async function getDeviceId() {
@@ -110,15 +119,19 @@ async function classifyWebsite(site, tab) {
       method: "POST", headers: apiHeaders(config),
       body: JSON.stringify({ ...site, scopeContext: config.policyContext ?? {} })
     });
-    if (!response.ok) throw new Error(`Study Shield website API returned ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(`Study Shield website API returned ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
     result = { ok: true, decision: await response.json() };
   } catch (error) {
     result = {
       ok: false,
       decision: {
         allowed: config.failMode === "open", category: "unavailable", confidence: 0,
-        reason: config.failMode === "open"
-          ? "Website checking is temporarily unavailable."
+        reason: error.status === 401
+          ? "Study Shield is not authorized. Update the API token in the extension settings."
           : "Website checking is temporarily unavailable."
       },
       error: error.message

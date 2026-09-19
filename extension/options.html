@@ -23,12 +23,13 @@
       <input id="apiBaseUrl" type="url" required>
       <label for="apiToken">API token</label>
       <input id="apiToken" type="password" autocomplete="off">
+      <p class="note">Use the token value only. Surrounding quotes from the .env file are removed automatically.</p>
       <label for="studentName">Student display name</label>
       <input id="studentName" type="text" maxlength="120" placeholder="e.g. Jordan Lee">
       <label for="deviceLabel">Device label</label>
       <input id="deviceLabel" type="text" maxlength="120" placeholder="e.g. Chromebook 14">
       <label for="failMode">When the classifier is unavailable</label>
-      <select id="failMode"><option value="closed">Block playback</option><option value="open">Allow playback</option></select>
+      <select id="failMode"><option value="closed">Block access</option><option value="open">Allow access</option></select>
       <label class="checkbox"><input id="screenshotEnabled" type="checkbox"> Enable periodic visible-tab screen previews</label>
       <p class="note">Disabled by default. When enabled, the extension captures the active tab no more than once per configured interval.</p>
       <label for="screenshotIntervalSeconds">Screen preview interval (seconds)</label>
