@@ -1,5 +1,6 @@
 (() => {
   let checkedUrl = "";
+  let checking = false;
 
   function websiteMetadata() {
     const url = new URL(location.href);
@@ -27,25 +28,45 @@
     overlay.querySelector("button").addEventListener("click", () => history.back());
   }
 
+  function removeBlocker() {
+    document.getElementById("study-shield-website-overlay")?.remove();
+  }
+
   function escapeHtml(value) {
     const node = document.createElement("span");
     node.textContent = value;
     return node.innerHTML;
   }
 
-  async function checkWebsite() {
-    if (checkedUrl === location.href) return;
-    checkedUrl = location.href;
+  async function checkWebsite({ force = false } = {}) {
+    if (checking || (!force && checkedUrl === location.href)) return;
+    const requestedUrl = location.href;
+    checkedUrl = requestedUrl;
+    checking = true;
     let result;
     try {
       result = await chrome.runtime.sendMessage({ type: "CLASSIFY_WEBSITE", site: websiteMetadata() });
     } catch {
       result = { ok: false, decision: { allowed: false, reason: "Study Shield could not contact its extension service." } };
+    } finally {
+      checking = false;
     }
-    if (checkedUrl !== location.href || result?.decision?.allowed) return;
+    if (requestedUrl !== location.href) return;
+    if (result?.decision?.allowed) {
+      removeBlocker();
+      return;
+    }
     showBlocker(result?.decision?.reason || "This website is not approved for school use.");
   }
 
   checkWebsite();
   window.addEventListener("popstate", checkWebsite);
+  window.addEventListener("focus", () => {
+    if (document.getElementById("study-shield-website-overlay")) checkWebsite({ force: true });
+  });
+  setInterval(() => {
+    if (document.visibilityState === "visible" && document.getElementById("study-shield-website-overlay")) {
+      checkWebsite({ force: true });
+    }
+  }, 15000);
 })();

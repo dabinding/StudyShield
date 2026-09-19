@@ -101,6 +101,7 @@ async function classifyWebsite(site, tab) {
     }
   } catch { /* The API validates the page URL. */ }
 
+  const previousDecision = latestDecision;
   latestDecision = { tabId: tab?.id, url: tab?.url, state: "checking", checkedAt: Date.now() };
   scheduleHeartbeat(0);
   let result;
@@ -124,14 +125,18 @@ async function classifyWebsite(site, tab) {
     };
   }
   const decisionText = `${site.title ?? ""} ${site.domain ?? ""} ${result.decision?.reason ?? ""}`.toLowerCase();
-  latestDecision = {
+  const nextDecision = {
     tabId: tab?.id, url: tab?.url, state: result.ok ? "complete" : "unavailable",
     category: result.decision?.category, confidence: result.decision?.confidence,
     cached: result.decision?.cached, reason: result.decision?.reason,
     blocked: !result.decision?.allowed,
     gameDetected: GAME_TERMS.some(term => decisionText.includes(term)), checkedAt: Date.now()
   };
-  if (latestDecision.blocked) {
+  const repeatedBlock = previousDecision?.blocked === true &&
+    previousDecision.tabId === nextDecision.tabId && previousDecision.url === nextDecision.url &&
+    previousDecision.category === nextDecision.category && previousDecision.reason === nextDecision.reason;
+  latestDecision = nextDecision;
+  if (latestDecision.blocked && !repeatedBlock) {
     latestPolicyEvent = {
       eventId: crypto.randomUUID(), violation: true, at: Date.now(),
       reason: latestDecision.reason, category: latestDecision.category

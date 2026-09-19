@@ -79,3 +79,27 @@ test("saving a rule clears the local classification cache", async () => {
   assert.equal(decision.allowed, false);
   assert.equal(decision.source, "policy");
 });
+
+test("an inactive blacklist is ignored immediately after an update", async () => {
+  let classifierCalls = 0;
+  const repository = new InMemoryWebsitePolicyRepository({ rules: [
+    { id: "global-block", scopeType: "global", scopeId: "global", action: "blacklist", matchType: "suffix", pattern: "learn.example.org", active: true }
+  ] });
+  const service = new WebsitePolicyService({
+    repository,
+    classifier: async () => {
+      classifierCalls += 1;
+      return { category: "educational", confidence: 0.9, reason: "Educational resource." };
+    }
+  });
+
+  const blocked = await service.decide(site, context);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.source, "policy");
+
+  await service.updateRule("global-block", { ...repository.rules[0], active: false });
+  const allowed = await service.decide(site, context);
+  assert.equal(allowed.allowed, true);
+  assert.equal(allowed.source, "ai");
+  assert.equal(classifierCalls, 1);
+});
